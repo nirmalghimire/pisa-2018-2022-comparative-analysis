@@ -1,0 +1,95 @@
+---
+title: "Data Modeling 2018"
+author: 
+  - name: "Nirmal Ghimire, Ph.D."
+    url: "https://www.linkedin.com/in/nirmal-ghimire-5b96a034/"
+    affiliation: "Watson College of Education, University of North Carolina Wilmington"
+    affiliation_url: "https://uncw.edu/academics/colleges/wce/about/org-charts"
+    orcid_id: "0000-0002-2032-1624"
+    role: "Assistant Professor"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true               # Enable a table of contents
+    toc_float: true         # Make the TOC float for easy navigation
+    toc_depth: 3            # Limit TOC depth to three levels
+    theme: cosmo            # Apply a clean, modern Bootstrap theme
+    highlight: tango        # Use syntax highlighting for code
+    code_folding: hide      # Allow users to toggle code visibility
+    df_print: paged         # Use paginated tables for data frames
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      comment = NA,
+                      warning = FALSE,
+                      message = FALSE,
+                      tidy = 'styler',
+                      error = FALSE, 
+                      highlight = TRUE, 
+                      prompt = FALSE)
+library(tidyverse)
+library(haven)
+library(dplyr)
+library(data.table)
+```
+
+## Loading Required Data
+
+```{r loading_data}
+memory.limit(size = 64000)
+student_2018_data <- read_sav("C:/Users/ghimiren/Desktop/PISA/CY07_MSU_STU_QQQ.sav")
+dim(student_2018_data)
+names(student_2018_data)
+#summary(student_data)
+```
+
+## Calculate Weighted Average
+```{r weighted_avg}
+# Function to calculate the weighted mean
+weighted_mean <- function(x, w) {
+  sum(x * w, na.rm = TRUE) / sum(w, na.rm = TRUE)
+}
+
+# Calculate full sample weighted mean scores
+full_sample <- student_2018_data %>%
+  rowwise() %>%
+  mutate(
+    full_sample_reading_score = mean(sapply(1:10, function(i) weighted_mean(get(paste0("PV", i, "READ")), W_FSTUWT))),
+    full_sample_math_score = mean(sapply(1:10, function(i) weighted_mean(get(paste0("PV", i, "MATH")), W_FSTUWT))),
+    full_sample_science_score = mean(sapply(1:10, function(i) weighted_mean(get(paste0("PV", i, "SCIE")), W_FSTUWT)))
+  ) %>%
+  ungroup()
+
+# Summarize the new columns
+summary(full_sample$full_sample_reading_score)
+summary(full_sample$full_sample_math_score)
+summary(full_sample$full_sample_science_score)
+```
+
+## Subset the Data
+```{r subset_data}
+# Subset the data with selected columns
+full_sample_2018 <- full_sample %>%
+  select(
+    CNTRYID, CNT, CNTSCHID, CNTSTUID, OECD, ICTHOME, ICTSCH, GRADE, 
+    PAREDINT, WEALTH, ST004D01T, 
+    full_sample_reading_score, full_sample_math_score, full_sample_science_score, W_FSTUWT
+  )
+
+# Display the structure of the subset data
+str(full_sample_2018)
+dim(full_sample_2018)
+```
+
+## Save the Subsetted Data
+```{r save_data}
+full_sample_2018 <- as.data.table(full_sample_2018)
+
+# Save the subsetted data as an .RData file
+save(full_sample_2018, file = "full_sample_2018.RData")
+
+# Save the subsetted data as a .csv file
+write.csv(full_sample_2018, "full_sample_2018.csv", row.names = FALSE)
+```
+
